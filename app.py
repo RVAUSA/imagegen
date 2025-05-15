@@ -28,7 +28,10 @@ if st.button("🚀 Train Model"):
     st.info("Sending images to Runware for training...")
 
     # This is placeholder logic — you’ll need to connect to your actual Runware instance
-    files = {"images": (img.name, img, img.type) for img in uploaded_images}
+    files = []
+    for img in uploaded_images:
+        files.append(("images", (img.name, img, img.type)))
+
     data = {"image_type": image_type, "model_name": "test_handbag_lora"}
 
     # Example placeholder endpoint
