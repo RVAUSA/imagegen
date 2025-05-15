@@ -27,23 +27,32 @@ if uploaded_images:
 if st.button("🚀 Train Model"):
     st.info("Sending images to Runware for training...")
 
-    # This is placeholder logic — you’ll need to connect to your actual Runware instance
-    files = []
-    for img in uploaded_images:
-        files.append(("images", (img.name, img, img.type)))
-
+    # ✅ FIX: Correct file format for multiple images
+    files = [("images", (img.name, img, img.type)) for img in uploaded_images]
     data = {"image_type": image_type, "model_name": "test_handbag_lora"}
 
-    # Example placeholder endpoint
-    response = requests.post("https://api.runware.ai/kohya/train", files=files, data=data, headers = {
-    "X-API-Key": st.secrets["runware"]["api_key"]
-}
-)
+    try:
+        # ✅ Add timeout and request info
+        response = requests.post(
+            "https://api.runware.ai/kohya/train",
+            files=files,
+            data=data,
+            headers={"X-API-Key": st.secrets["runware"]["api_key"]},
+            timeout=120
+        )
 
-    if response.status_code == 200:
-        st.success("Training started! Check back in a while to test generation.")
-    else:
-        st.error("There was an error starting training. Check your API or image data.")
+        # ✅ Display raw response to help debugging
+        st.write(f"Status code: {response.status_code}")
+        st.write(f"Response content: {response.content.decode('utf-8')}")
+
+        if response.status_code == 200:
+            st.success("Training started! Check back in a while to test generation.")
+        else:
+            st.error("There was an error starting training. Check your API or image data.")
+
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+
 
 # Prompt-based generation
 st.subheader("🎨 Generate Image (ComfyUI)")
