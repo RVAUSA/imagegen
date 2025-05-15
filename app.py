@@ -1,28 +1,64 @@
 import streamlit as st
+import requests
+import os
 
-st.set_page_config(page_title="Handbag Model Trainer", layout="wide")
+st.set_page_config(page_title="Handbag AI Prototype", layout="centered")
 
-st.title("👜 Train Your First AI Model")
+st.title("👜 Handbag AI – Prototype V1")
 
-uploaded_files = st.file_uploader(
-    "Upload 10–30 photos of your handbag",
-    type=["png", "jpg", "jpeg"],
-    accept_multiple_files=True
-)
+# Sidebar
+st.sidebar.header("Instructions")
+st.sidebar.markdown("""
+1. Upload 10–20 images of your handbag (same angle, lighting preferred).
+2. Choose the image type: Hero Shot or Macro Detail.
+3. Click **Train Model** to start training with Kohya-SS.
+4. Once training finishes, enter a prompt to generate an image using ComfyUI.
+""")
 
-if uploaded_files:
-    st.success(f"{len(uploaded_files)} images uploaded successfully.")
-    # In a real app, you'd now send these to Runware's backend API
+# Upload
+st.subheader("📤 Upload Training Images")
+image_type = st.selectbox("Select image type:", ["Hero", "Macro Detail"])
+uploaded_images = st.file_uploader("Upload Images", accept_multiple_files=True, type=["jpg", "png"])
 
-    if st.button("Start Training"):
-        st.info("⏳ Training in progress... (this would connect to Runware API)")
-        # Placeholder — backend call goes here
-        st.success("✅ Model trained successfully!")
+if uploaded_images:
+    st.success(f"{len(uploaded_images)} image(s) uploaded as '{image_type}'.")
 
-prompt = st.text_input("Enter a prompt to generate new images")
+# Start training
+if st.button("🚀 Train Model"):
+    st.info("Sending images to Runware for training...")
 
-if prompt:
-    if st.button("Generate Images"):
-        st.info("🧠 Generating images from model...")
-        # Placeholder — real API call would go here
-        st.image("https://placekitten.com/400/400", caption="Generated Image", width=300)
+    # This is placeholder logic — you’ll need to connect to your actual Runware instance
+    files = {"images": (img.name, img, img.type) for img in uploaded_images}
+    data = {"image_type": image_type, "model_name": "test_handbag_lora"}
+
+    # Example placeholder endpoint
+    response = requests.post("https://api.runware.ai/kohya/train", files=files, data=data, headers={
+        "Authorization": f"Bearer {os.getenv('RUNWARE_API_KEY', 'your-api-key-here')}"
+    })
+
+    if response.status_code == 200:
+        st.success("Training started! Check back in a while to test generation.")
+    else:
+        st.error("There was an error starting training. Check your API or image data.")
+
+# Prompt-based generation
+st.subheader("🎨 Generate Image (ComfyUI)")
+
+prompt = st.text_input("Enter prompt (e.g., 'leather handbag in studio lighting')")
+
+if st.button("🖼️ Generate Image"):
+    st.info("Sending prompt to ComfyUI for generation...")
+
+    # Placeholder generation logic
+    gen_response = requests.post("https://api.runware.ai/comfyui/generate", json={
+        "prompt": prompt,
+        "model": "test_handbag_lora"
+    }, headers={
+        "Authorization": f"Bearer {os.getenv('RUNWARE_API_KEY', 'your-api-key-here')}"
+    })
+
+    if gen_response.status_code == 200:
+        image_url = gen_response.json().get("image_url")
+        st.image(image_url, caption="Generated Image")
+    else:
+        st.error("There was an error generating the image.")
