@@ -32,9 +32,10 @@ if st.button("🚀 Train Model"):
     data = {"image_type": image_type, "model_name": "test_handbag_lora"}
 
     # Example placeholder endpoint
-    response = requests.post("https://api.runware.ai/kohya/train", files=files, data=data, headers={
-        "Authorization": f"Bearer {os.getenv('RUNWARE_API_KEY', 'your-api-key-here')}"
-    })
+    response = requests.post("https://api.runware.ai/kohya/train", files=files, data=data, headers = {
+    "X-API-Key": st.secrets["runware"]["api_key"]
+}
+)
 
     if response.status_code == 200:
         st.success("Training started! Check back in a while to test generation.")
