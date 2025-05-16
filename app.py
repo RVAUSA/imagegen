@@ -55,25 +55,24 @@ if st.button("🚀 Train Model"):
     st.write("📦 Payload being sent:")
     st.json(tasks[1])
 
-    try:
+ try:
     response = requests.post(
-    "https://api.runware.ai/v1",
-    json=tasks,
-    timeout=120
+        "https://api.runware.ai/v1",
+        json=tasks,
+        timeout=120
     )
 
+    if response.status_code == 200:
+        st.success("✅ Training started! Check back later to test generation.")
+    else:
+        try:
+            error_msg = response.json().get("errors", response.text)
+        except Exception:
+            error_msg = response.text
 
-        if response.status_code == 200:
-            st.success("✅ Training started! Check back later to test generation.")
-        else:
-            try:
-                error_msg = response.json().get("errors", response.text)
-            except Exception:
-                error_msg = response.text
+        st.error(f"❌ Training failed: {error_msg}")
+        st.write(f"Status code: {response.status_code}")
+        st.write(f"Raw response: {response.content}")
 
-            st.error(f"❌ Training failed: {error_msg}")
-            st.write(f"Status code: {response.status_code}")
-            st.write(f"Raw response: {response.content}")
-
-    except Exception as e:
-        st.error(f"Unexpected error: {e}")
+except Exception as e:
+    st.error(f"Unexpected error: {e}")
