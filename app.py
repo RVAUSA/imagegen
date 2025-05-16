@@ -56,12 +56,12 @@ if st.button("🚀 Train Model"):
     st.json(tasks[1])
 
     try:
-        response = requests.post(
-            "https://api.runware.ai/v1",
-            headers={"Content-Type": "application/json"},
-            data=json.dumps(tasks),
-            timeout=120
-        )
+    response = requests.post(
+    "https://api.runware.ai/v1",
+    json=tasks,
+    timeout=120
+    )
+
 
         if response.status_code == 200:
             st.success("✅ Training started! Check back later to test generation.")
