@@ -19,20 +19,24 @@ st.sidebar.markdown("""
 st.subheader("📤 Upload Training Images")
 image_type = st.selectbox("Select image type:", ["Hero", "Macro Detail"])
 uploaded_images = st.file_uploader("Upload Images", accept_multiple_files=True, type=["jpg", "png"])
+show_debug = st.checkbox("Show debug info")
 
 if uploaded_images:
     st.success(f"{len(uploaded_images)} image(s) uploaded as '{image_type}'.")
 
 # Start training
 if st.button("🚀 Train Model"):
+    if not uploaded_images:
+        st.warning("Please upload at least one image before training.")
+        st.stop()
+
     st.info("Sending images to Runware for training...")
 
-    # ✅ FIX: Correct file format for multiple images
+    # Format files for multipart/form-data
     files = [("images", (img.name, img, img.type)) for img in uploaded_images]
     data = {"image_type": image_type, "model_name": "test_handbag_lora"}
 
     try:
-        # ✅ Add timeout and request info
         response = requests.post(
             "https://api.runware.ai/kohya/train",
             files=files,
@@ -41,18 +45,21 @@ if st.button("🚀 Train Model"):
             timeout=120
         )
 
-        # ✅ Display raw response to help debugging
-        st.write(f"Status code: {response.status_code}")
-        st.write(f"Response content: {response.content.decode('utf-8')}")
-
         if response.status_code == 200:
-            st.success("Training started! Check back in a while to test generation.")
+            st.success("✅ Training started! Check back in a while to test generation.")
         else:
-            st.error("There was an error starting training. Check your API or image data.")
+            try:
+                error_msg = response.json().get("error", "No error message returned.")
+            except Exception:
+                error_msg = response.text  # fallback
+
+            st.error(f"❌ Training failed: {error_msg}")
+            if show_debug:
+                st.write(f"Status code: {response.status_code}")
+                st.write(f"Raw response: {response.content}")
 
     except Exception as e:
-        st.error(f"An error occurred: {e}")
-
+        st.error(f"An unexpected error occurred: {e}")
 
 # Prompt-based generation
 st.subheader("🎨 Generate Image (ComfyUI)")
@@ -62,7 +69,6 @@ prompt = st.text_input("Enter prompt (e.g., 'leather handbag in studio lighting'
 if st.button("🖼️ Generate Image"):
     st.info("Sending prompt to ComfyUI for generation...")
 
-    # Placeholder generation logic
     gen_response = requests.post("https://api.runware.ai/comfyui/generate", json={
         "prompt": prompt,
         "model": "test_handbag_lora"
@@ -74,4 +80,7 @@ if st.button("🖼️ Generate Image"):
         image_url = gen_response.json().get("image_url")
         st.image(image_url, caption="Generated Image")
     else:
-        st.error("There was an error generating the image.")
+        st.error("❌ There was an error generating the image.")
+        if show_debug:
+            st.write(f"Status code: {gen_response.status_code}")
+            st.write(f"Raw response: {gen_response.content}")
