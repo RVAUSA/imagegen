@@ -32,47 +32,46 @@ if st.button("🚀 Train Model"):
 
     st.info("Sending images to Runware for training...")
 
-    # Encode images to base64
-    images_b64 = []
+    # Convert uploaded images to base64 strings
+    base64_images = []
     for img in uploaded_images:
         img_bytes = img.read()
-        img_b64 = base64.b64encode(img_bytes).decode("utf-8")
-        images_b64.append(img_b64)
+        encoded = base64.b64encode(img_bytes).decode("utf-8")
+        base64_images.append({
+            "filename": img.name,
+            "data": encoded,
+            "mime_type": img.type
+        })
 
-    # Prepare the payload
+    # Build the task array as per Runware API
     tasks = [
         {"auth": {"apiKey": st.secrets["runware"]["api_key"]}},
         {
             "type": "train_kohya",
             "model_name": "test_handbag_lora",
             "image_type": image_type,
-            "images": images_b64
+            "images": base64_images
         }
     ]
 
-    # Debug output
-    st.write("✅ API key loaded")
-    st.write("📦 Payload being sent:")
-    st.json(tasks[1])
+    try:
+        response = requests.post(
+            "https://api.runware.ai/v1",
+            json=tasks,
+            timeout=120
+        )
 
- try:
-    response = requests.post(
-        "https://api.runware.ai/v1",
-        json=tasks,
-        timeout=120
-    )
+        if response.status_code == 200:
+            st.success("✅ Training started successfully!")
+        else:
+            try:
+                error_details = response.json().get("errors", "Unknown error")
+            except Exception:
+                error_details = response.text
 
-    if response.status_code == 200:
-        st.success("✅ Training started! Check back later to test generation.")
-    else:
-        try:
-            error_msg = response.json().get("errors", response.text)
-        except Exception:
-            error_msg = response.text
+            st.error(f"❌ Training failed: {error_details}")
+            st.write(f"Status code: {response.status_code}")
+            st.write(f"Raw response: {response.content}")
 
-        st.error(f"❌ Training failed: {error_msg}")
-        st.write(f"Status code: {response.status_code}")
-        st.write(f"Raw response: {response.content}")
-
-except Exception as e:
-    st.error(f"Unexpected error: {e}")
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
