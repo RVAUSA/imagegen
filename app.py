@@ -36,6 +36,14 @@ if st.button("🚀 Train Model"):
     files = [("images", (img.name, img, img.type)) for img in uploaded_images]
     data = {"image_type": image_type, "model_name": "test_handbag_lora"}
 
+    # DEBUG: Show exactly what is being sent in files and data
+    st.write("DEBUG - files being sent:")
+    for f in files:
+        st.write(f"Field name: {f[0]}, filename: {f[1][0]}, file type: {f[1][2]}")
+    st.write("DEBUG - data being sent:")
+    st.write(data)
+
+
     try:
         response = requests.post(
             "https://api.runware.ai/kohya/train",
