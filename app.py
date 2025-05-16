@@ -1,6 +1,8 @@
 import streamlit as st
 import requests
 import os
+import base64
+import json
 
 st.set_page_config(page_title="Handbag AI Prototype", layout="centered")
 
@@ -19,7 +21,6 @@ st.sidebar.markdown("""
 st.subheader("📤 Upload Training Images")
 image_type = st.selectbox("Select image type:", ["Hero", "Macro Detail"])
 uploaded_images = st.file_uploader("Upload Images", accept_multiple_files=True, type=["jpg", "png"])
-show_debug = st.checkbox("Show debug info")
 
 if uploaded_images:
     st.success(f"{len(uploaded_images)} image(s) uploaded as '{image_type}'.")
@@ -32,24 +33,32 @@ if st.button("🚀 Train Model"):
 
     st.info("Sending images to Runware for training...")
 
-    # Format files for multipart/form-data
-    files = [("images", (img.name, img, img.type)) for img in uploaded_images]
-    data = {"image_type": image_type, "model_name": "test_handbag_lora"}
+    # Prepare the payload according to Runware's new API spec
+    tasks = [
+        {"type": "auth", "token": st.secrets["runware"]["api_key"]},
+        {
+            "type": "train_kohya",
+            "model_name": "test_handbag_lora",
+            "image_type": image_type,
+            "images": []
+        }
+    ]
 
-    # DEBUG: Show exactly what is being sent in files and data
-    st.write("DEBUG - files being sent:")
-    for f in files:
-        st.write(f"Field name: {f[0]}, filename: {f[1][0]}, file type: {f[1][2]}")
-    st.write("DEBUG - data being sent:")
-    st.write(data)
-
+    # Read images into memory and encode to base64 strings
+    for img in uploaded_images:
+        img_bytes = img.read()
+        img_base64 = base64.b64encode(img_bytes).decode('utf-8')
+        tasks[1]["images"].append({
+            "filename": img.name,
+            "content": img_base64,
+            "content_type": img.type
+        })
 
     try:
         response = requests.post(
-            "https://api.runware.ai/kohya/train",
-            files=files,
-            data=data,
-            headers={"X-API-Key": st.secrets["runware"]["api_key"]},
+            "https://api.runware.ai/v1",
+            headers={"Content-Type": "application/json"},
+            data=json.dumps(tasks),
             timeout=120
         )
 
@@ -59,15 +68,15 @@ if st.button("🚀 Train Model"):
             try:
                 error_msg = response.json().get("error", "No error message returned.")
             except Exception:
-                error_msg = response.text  # fallback
+                error_msg = response.content.decode('utf-8')  # fallback
 
             st.error(f"❌ Training failed: {error_msg}")
-            if show_debug:
-                st.write(f"Status code: {response.status_code}")
-                st.write(f"Raw response: {response.content}")
+            st.write(f"Status code: {response.status_code}")
+            st.write(f"Raw response: {response.content.decode('utf-8')}")
 
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
+
 
 # Prompt-based generation
 st.subheader("🎨 Generate Image (ComfyUI)")
@@ -77,18 +86,23 @@ prompt = st.text_input("Enter prompt (e.g., 'leather handbag in studio lighting'
 if st.button("🖼️ Generate Image"):
     st.info("Sending prompt to ComfyUI for generation...")
 
-    gen_response = requests.post("https://api.runware.ai/comfyui/generate", json={
-        "prompt": prompt,
-        "model": "test_handbag_lora"
-    }, headers={
-        "Authorization": f"Bearer {os.getenv('RUNWARE_API_KEY', 'your-api-key-here')}"
-    })
+    gen_response = requests.post(
+        "https://api.runware.ai/v1",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps([
+            {"type": "auth", "token": st.secrets["runware"]["api_key"]},
+            {"type": "generate_comfyui", "model": "test_handbag_lora", "prompt": prompt}
+        ]),
+        timeout=120
+    )
 
     if gen_response.status_code == 200:
         image_url = gen_response.json().get("image_url")
-        st.image(image_url, caption="Generated Image")
+        if image_url:
+            st.image(image_url, caption="Generated Image")
+        else:
+            st.error("No image URL returned from generation.")
     else:
-        st.error("❌ There was an error generating the image.")
-        if show_debug:
-            st.write(f"Status code: {gen_response.status_code}")
-            st.write(f"Raw response: {gen_response.content}")
+        st.error("There was an error generating the image.")
+        st.write(f"Status code: {gen_response.status_code}")
+        st.write(f"Response content: {gen_response.content.decode('utf-8')}")
